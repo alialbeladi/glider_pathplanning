@@ -4,12 +4,13 @@ import matplotlib.pyplot as plt
 from scipy.integrate import tplquad
 from scipy.integrate import dblquad
 import RRt_Glider
-from RRt_Glider import *
+# from RRt_Glider import *
 
 # Constants
 g = 9.81  # gravity acceleration in m/s^2
 rho = 1000  # density of water in kg/m^3
-cylender_dim = [0.23,1.22] # [diameter,length]
+cylender_dim = [0.1,0.4] #[0.23,1.22] # [diameter,length]
+syringe_dim = [0.05,0.2]
 Vol = cylender_dim[1]*np.pi*(cylender_dim[0]/2)**2 # volume for buoyancy calculation in m^3
 
 
@@ -22,9 +23,9 @@ poses = {
     'L': np.eye(4),  # pose of the left wing
     'R': np.eye(4),  # pose of the right wing
 }
-poses['s'][:3, 3] = np.array([0, 0, 1])
-poses['L'][:3, 3] = np.array([-3, 0, 1])
-poses['R'][:3, 3] = np.array([+3, 0, 1])
+poses['s'][:3, 3] = np.array([0, 0, .1])
+poses['L'][:3, 3] = np.array([-.25, 0, 0])
+poses['R'][:3, 3] = np.array([+.25, 0, 0])
 
 
 # Define cross-sectional areas (A) for each part
@@ -43,8 +44,8 @@ drag_coeffs = {
 
 # Define masses for each point
 masses = {
-    's': 20,  # mass of the static point
-    'o': 5,  # mass of the movable point
+    's': 2,  # mass of the static point
+    'o': 0.95#1.#33,  # mass of the movable point
 }
 
 
@@ -82,6 +83,7 @@ S0 = np.hstack((T0_vec, V0))  # initial state vector
 t_span = (0, 10)
 t_eval = np.linspace(*t_span, 1000)  # evaluation points
 dt = t_eval[1]
+print(dt)
 
  
  # Define the skew-symmetric matrix for angular velocity
@@ -133,7 +135,7 @@ def total_gravity_wrench(T, poses, masses):
             continue  # Skip L and R for gravity calculation
 
         # Get mass for the current point
-        print(key)
+        # print(key)
         m = masses.get(key)
 
         # Calculate R_iE and p_iE
@@ -143,8 +145,8 @@ def total_gravity_wrench(T, poses, masses):
         p_iE = p_E_b + R_E_b @ p_iB
 
         # Calculate f^i_g
-        print(m)
-        print(g)
+        # print(m)
+        # print(g)
         f_i_g = R_iE @ np.array([0, 0, -m * g])
 
         # Calculate the wrench at each point
@@ -271,8 +273,8 @@ def total_drag_wrench(V, poses, areas, drag_coeffs):
     w_b = V[:3]
     f_D_b = drag_force(v_b, A_b, c_b)
     m_D_b1 = np.zeros(3)
-    if poses['o'][:3, 3][0] == 0: m_D_b = drag_moment_body(w_b, A_b, c_b)
-    else: m_D_b = drag_moment_body_simple(w_b, np.diag([0.2,0.2,0.1]))
+    # if poses['o'][:3, 3][0] == 0: m_D_b = drag_moment_body(w_b, A_b, c_b)
+    m_D_b = drag_moment_body_simple(w_b, np.diag([0.2,0.2,0.1]))
 
     F_H = np.hstack((m_D_b, f_D_b))
 
@@ -312,7 +314,7 @@ def total_drag_wrench(V, poses, areas, drag_coeffs):
 def system_odes(t, S, G, poses, masses, areas, drag_coeffs, u1_a, u1_b, u2):
     poses['o'][:3, 3] = np.array([u1_a, u1_b, 0])
     poses['a'][:3, 3] = np.array([0, 0, u2/2])
-    masses['a'] = rho * np.pi * radius**2 * u2
+    masses['a'] = rho * np.pi * (syringe_dim[0]/2)**2 * u2
 
     T = np.eye(4)
     T[:3, :3] = S[:9].reshape((3, 3))  # extract rotation part
@@ -331,7 +333,7 @@ def system_odes(t, S, G, poses, masses, areas, drag_coeffs, u1_a, u1_b, u2):
 
      # Debugging: print intermediate results
 
-    print(f"time: {t}")
+    # print(f"time: {t}")
     """
     print(f"T: \n{T}")
     print(f"V: \n{V}")
