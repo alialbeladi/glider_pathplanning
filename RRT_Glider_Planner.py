@@ -9,7 +9,7 @@ show_animation = True
 
 class RRT:
     class Node:
-        def __init__(self, T, V,inputs=np.array([0,0,syringe_dim[1]/2])):
+        def __init__(self, T, V,inputs=np.array([0.0,0.0,syringe_dim[1]/2])):
             self.T = T  # Transformation matrix
             self.V = V  # Velocity vector
             self.path_x = []
@@ -28,15 +28,15 @@ class RRT:
             self.zmin = float(area[4])
             self.zmax = float(area[5])
 
-    def __init__(self, start, goal, obstacle_list, rand_area, expand_dis=1.0, path_resolution=5,
+    def __init__(self, start, goal, obstacle_list, rand_area, expand_dis=1.0, path_resolution=20.0,
                  goal_sample_rate=5, max_iter=200, play_area=None, robot_radius=0.0):
         start_T = np.eye(4)
         start_T[:3, 3] = np.array([start[0], start[1], start[2]])
-        self.start = self.Node(start_T, V=[0, 0, 0, 0, 0, 0])
+        self.start = self.Node(start_T, V=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         
         end_T = np.eye(4)
         end_T[:3, 3] = np.array([goal[0], goal[1], goal[2]])
-        self.end = self.Node(end_T, V=[0, 0, 0, 0, 0, 0])
+        self.end = self.Node(end_T, V=[0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
         
         self.min_rand = rand_area[0]
         self.max_rand = rand_area[1]
@@ -94,7 +94,7 @@ class RRT:
         V0 = np.array(from_node.V).flatten()
         S0 = np.hstack((T0[:3, :3].flatten(), T0[:3, 3], V0))
 
-        print(S0[9:12])
+        print(S0)
         u1_a = np.linspace(-radius/10, radius/10, num=2)
         u1_b = np.linspace(-radius/10, radius/10, num=2)
         u2 = np.linspace(-syringe_dim[1]/10, syringe_dim[1]/10, num=3)
@@ -115,23 +115,23 @@ class RRT:
                 u[:2][u[:2]<-radius]=-radius
                 u[2] = syringe_dim[1] if u[2]>syringe_dim[1] else u[2]
                 u[2] = 0 if u[2] < 0 else u[2]
-                # print(u)
+                print(u)
                 sol = solve_ivp(system_odes, [0, self.path_resolution], S0, args=(G, poses, masses, areas, drag_coeffs, u[0], u[1], u[2]), rtol=1e-6, atol=1e-8)
-                T_sol = sol.y[:12].reshape(-1, 12)
-                q_final = T_sol[-1, 9:12]
-                # print(q_final)
+                T_sol = sol.y[:12,-1]
+                q_final = T_sol[9:12]
+                print(q_final)
 
                 dist_to_target = np.linalg.norm(q_final - to_node.T[:3, 3])
                 if dist_to_target < min_dist:
                     min_dist = dist_to_target
                     min_q_final = q_final
-                    new_node.T = np.copy(T_sol[-1].reshape(3, 4))
+                    new_node.T[:3,:3] = T_sol[:9].reshape(3,3)
+                    new_node.T[:3, 3] = q_final
                     new_node.V = sol.y[12:, -1]
                     new_node.inputs = u.copy()
-
-        new_node.path_x = sol.y[9,:]    #.append(min_q_final[0])  # x-coordinate
-        new_node.path_y = sol.y[10,:]    #.append(min_q_final[1]) # y-coordinate
-        new_node.path_z = sol.y[11,:]    #.append(min_q_final[2]) # z-coordinate
+                    new_node.path_x = sol.y[9,:]    #.append(min_q_final[0])  # x-coordinate
+                    new_node.path_y = sol.y[10,:]    #.append(min_q_final[1]) # y-coordinate
+                    new_node.path_z = sol.y[11,:]    #.append(min_q_final[2]) # z-coordinate
         new_node.parent = from_node
         return new_node
 
@@ -141,7 +141,7 @@ class RRT:
         V0 = np.array(from_node.V).flatten()
         S0 = np.hstack((T0[:3, :3].flatten(), T0[:3, 3], V0))
 
-        print(S0[9:12])
+        print(S0)
         u1_a = np.linspace(-radius / 10, radius / 10, num=2)
         u1_b = np.linspace(-radius / 10, radius / 10, num=2)
         u2 = np.linspace(-syringe_dim[1] / 10, syringe_dim[1] / 10, num=3)
@@ -165,11 +165,13 @@ class RRT:
                 print(u)
                 sol = solve_ivp(system_odes, [0, self.path_resolution], S0,
                                 args=(G, poses, masses, areas, drag_coeffs, u[0], u[1], u[2]), rtol=1e-6, atol=1e-8)
-                T_sol = sol.y[:12].reshape(-1, 12)
-                q_final = T_sol[-1, 9:12]
+                print(sol.y.shape)
+                T_sol = sol.y[:12,-1]
+                q_final = T_sol[9:12]
                 print(q_final)
 
-                new_node.T = np.copy(T_sol[-1].reshape(3, 4))
+                new_node.T[:3,:3] = T_sol[:9].reshape(3,3)
+                new_node.T[:3, 3] = q_final
                 new_node.V = sol.y[12:, -1]
                 new_node.inputs = u.copy()
 
@@ -211,7 +213,7 @@ class RRT:
             ax.scatter(rnd.T[:3, 3][0], rnd.T[:3, 3][1], rnd.T[:3, 3][2], c='k', marker='*')
         for node in self.node_list:
             if node.parent:
-                print(node.T[:3, 3])
+                # print(node.T[:3, 3])
                 # ax.plot(node.T[:3, 3], node.T[:3, 3][1], node.T[:3, 3][2], "-g")
                 ax.plot(node.path_x, node.path_y, node.path_z, "-g")
         for (ox, oy, oz, size) in self.obstacle_list:
@@ -269,7 +271,7 @@ def main():
               goal=[5, 5, 3],
               rand_area=[0, 6],
               obstacle_list=obstacle_list,
-              play_area=[0, 10, 0, 10, 0, 10]
+              play_area=[-100, +100, -100, 100, -100, 100]
               )
     path = rrt.planning(animation=show_animation)
 

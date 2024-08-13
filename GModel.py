@@ -45,7 +45,7 @@ drag_coeffs = {
 # Define masses for each point
 masses = {
     's': 2,  # mass of the static point
-    'o': 0.95#1.#33,  # mass of the movable point
+    'o': 0.8#1.#33,  # mass of the movable point
 }
 
 
